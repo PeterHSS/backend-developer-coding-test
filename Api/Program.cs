@@ -2,6 +2,7 @@ using Api.Domain.Abstractions.Infrastructure;
 using Api.Extensions;
 using Api.Features.Stories.GetBestStories;
 using Api.Infrastructure.ExternalServices.HackerNews;
+using Api.Middleware;
 using Carter;
 using Microsoft.Extensions.Options;
 using Scalar.AspNetCore;
@@ -9,6 +10,10 @@ using Scalar.AspNetCore;
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddOpenApi();
+
+builder.Services.AddProblemDetails();
+
+builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
 
 builder.Services.AddCarter();
 
@@ -47,6 +52,8 @@ if (app.Environment.IsDevelopment())
         options.DefaultOpenAllTags = true;
     });
 }
+
+app.UseExceptionHandler();
 
 app.UseHttpsRedirection();
 

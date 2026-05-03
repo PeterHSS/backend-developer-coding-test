@@ -2,7 +2,7 @@
 using System.Text.Json;
 using Api.Domain.Abstractions.Infrastructure;
 using Api.Domain.Entities;
-using Api.Features.Stories.GetBestStories;
+using Api.Exceptions;
 using Microsoft.Extensions.Caching.Distributed;
 using RedLockNet;
 
@@ -12,7 +12,8 @@ internal sealed class HackerNewService(
     IDistributedCache distributedCache,
     IDistributedLockFactory lockFactory,
     HackerNewsHttpClient client,
-    HackerNewsOptions options
+    HackerNewsOptions options,
+    ILogger<HackerNewService> logger
     ) : IHackerNewsService
 {
     private readonly string _cacheKey = "hackernews:beststories";
@@ -41,8 +42,8 @@ internal sealed class HackerNewService(
 
         if (!redLock.IsAcquired)
         {
-            //todo : log that lock is not acquired and return empty list or throw exception
-            //todo: polly
+            logger.LogWarning("Failed to acquire cache lock for key {LockKey} after {WaitSeconds}s. Another instance is populating the cache.", _lockKey, options.LockWaitInSeconds);
+            throw new CacheLockNotAcquiredException(options.LockExpiryInSeconds);
         }
 
         cached = await distributedCache.GetStringAsync(_cacheKey, cancellationToken);
