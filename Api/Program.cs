@@ -4,7 +4,6 @@ using Api.Features.Stories.GetBestStories;
 using Api.Infrastructure.ExternalServices.HackerNews;
 using Api.Middleware;
 using Carter;
-using Microsoft.Extensions.Options;
 using Scalar.AspNetCore;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -26,8 +25,6 @@ builder.Services.AddScoped<IHackerNewsService, HackerNewService>();
 var hackerNewsOptions = builder.Configuration.GetSection(HackerNewsOptions.SectionName).Get<HackerNewsOptions>()!;
 
 builder.Services.AddSingleton(hackerNewsOptions);
-
-builder.Services.AddSingleton(serviceProvider => serviceProvider.GetRequiredService<IOptions<HackerNewsOptions>>().Value);
 
 builder.Services.AddHttpClient<HackerNewsHttpClient>(client =>
 {

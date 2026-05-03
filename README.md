@@ -68,26 +68,22 @@ The OpenAPI documentation is available at `/openapi/v1.json` when running in Dev
 
 ## Caching strategy
 
-To avoid overloading the Hacker News API under high request volumes, a two-level cache-aside pattern is applied using Redis (`IDistributedCache`) combined with **Redlock** distributed locking to prevent cache stampede:
+To avoid overloading the Hacker News API under high request volumes, a cache-aside pattern is applied using Redis (`IDistributedCache`) combined with **Redlock** distributed locking to prevent cache stampede.
 
-1. **Best story IDs list** – cached for 5 minutes. All requests within the window share the same ID list without hitting HN.
-2. **Individual story details** – each story is cached independently for 5 minutes. A warm cache means any subsequent request for overlapping stories (e.g. top 5 then top 10) pays no additional cost.
+The full list of best stories is fetched once and stored under a single cache key (`hackernews:beststories`) with a **1-minute TTL** (configurable via `HackerNews:CacheExpiryTimeInSeconds`). All requests within that window are served from cache without hitting the Hacker News API, regardless of the value of `n`.
 
 ### Cache stampede prevention (Redlock)
 
-When a cache entry expires, many concurrent requests could simultaneously miss the cache and all call the Hacker News API — the "thundering herd" problem. `LockedCache` prevents this with a **double-check locking** pattern backed by the [Redlock](https://redis.io/docs/latest/develop/use/patterns/distributed-locks/) distributed algorithm:
+When a cache entry expires, many concurrent requests could simultaneously miss the cache and all call the Hacker News API — the "thundering herd" problem. This is prevented with a **double-check locking** pattern backed by the [Redlock](https://redis.io/docs/latest/develop/use/patterns/distributed-locks/) distributed algorithm:
 
 1. Check cache → hit → return immediately (fast path).
-2. Miss → acquire a distributed Redlock on `lock:<key>` (only one instance proceeds).
+2. Miss → acquire a distributed Redlock on `hackernews:beststories:lock` (only one instance proceeds).
 3. Re-check cache after acquiring the lock — another instance may have already populated it.
-4. Still a miss → call the factory, write to cache, release lock.
+4. Still a miss → fetch from Hacker News API, write to cache, release lock.
+5. Lock not acquired after timeout → return `503 Service Unavailable` with `Retry-After` header.
 
 ## Enhancements given more time
 
-- **Distributed cache (Redis)** – replace the in-memory cache with Redis so the cache is shared across multiple API instances in a scaled-out deployment.
-- **Background refresh** – proactively refresh the best stories list and individual story details before they expire, eliminating cold-start latency spikes.
-- **Concurrency limiting** – add a `SemaphoreSlim` to cap the number of simultaneous outbound calls to the Hacker News API on cache miss, preventing thundering-herd scenarios.
-- **Resilience** – wrap `HttpClient` calls with [Polly](https://github.com/App-vNext/Polly) retry and circuit-breaker policies to handle transient HN API failures gracefully.
-- **Input validation** – reject requests where `n` is non-positive or exceeds a configurable maximum (the HN API caps best stories at 500).
-- **Structured logging and observability** – add request/response logging and expose metrics (cache hit rate, HN API latency) for monitoring.
-- **Integration tests** – test the full request pipeline against a mock HN API using `WebApplicationFactory`.
+- **Background refresh** – proactively refresh the best stories list before it expires, eliminating cold-start latency spikes on cache miss.
+- **Structured logging and observability** – expose metrics (cache hit rate, Hacker News API latency) for monitoring dashboards and alerting.
+- **Integration tests** – test the full request pipeline against a mock Hacker News API using `WebApplicationFactory`.

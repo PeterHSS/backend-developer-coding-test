@@ -42,7 +42,8 @@ internal sealed class HackerNewService(
 
         if (!redLock.IsAcquired)
         {
-            logger.LogWarning("Failed to acquire cache lock for key {LockKey} after {WaitSeconds}s. Another instance is populating the cache.", _lockKey, options.LockWaitInSeconds);
+            logger.LogWarning("Failed to acquire cache lock for key {LockKey} after {WaitSeconds}s. Another instance is populating the cache.", _lockKey, _lockWaitInSeconds);
+            
             throw new CacheLockNotAcquiredException(options.LockExpiryInSeconds);
         }
 
