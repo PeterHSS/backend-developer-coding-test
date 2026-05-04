@@ -60,6 +60,26 @@ curl https://localhost:7106/stories/best/10
 
 The OpenAPI documentation is available at `/openapi/v1.json` when running in Development mode.
 
+## Testing
+
+The solution includes a unit test project (`Api.Tests`) covering the full request pipeline without external dependencies.
+
+```bash
+dotnet test Api.Tests/Api.Tests.csproj
+```
+
+**What is tested:**
+
+| Layer | Scenarios covered |
+|---|---|
+| `GetBestStoriesUseCase` | Field mapping, Unix → `DateTimeOffset` conversion, parameter forwarding |
+| `GetBestStoriesEndpoint` | Boundary validation (`total` 1–500), HTTP 400/200 responses, content-type |
+| `HackerNewsService` | Cache hit (no lock), `count` limiting, lock not acquired → 503, API fetch + cache write, score sorting, double-check locking, null story exclusion, null URL handling |
+| `HackerNewsHttpClient` | Correct endpoint URLs, deserialization, null response handling |
+| `GlobalExceptionHandler` | 503 + `Retry-After` for lock timeout, 500 for unhandled exceptions |
+
+The endpoint tests use `WebApplicationFactory<Program>` with Redis replaced by an in-memory cache and all infrastructure mocked via NSubstitute, so no external services are required.
+
 ## Assumptions
 
 - The Hacker News `beststories.json` endpoint returns story IDs already ranked by score. The top *n* IDs are fetched and their details retrieved in parallel, then re-sorted by score to guarantee correct order regardless of any ranking drift.
@@ -86,4 +106,4 @@ When a cache entry expires, many concurrent requests could simultaneously miss t
 
 - **Background refresh** – proactively refresh the best stories list before it expires, eliminating cold-start latency spikes on cache miss.
 - **Structured logging and observability** – expose metrics (cache hit rate, Hacker News API latency) for monitoring dashboards and alerting.
-- **Integration tests** – test the full request pipeline against a mock Hacker News API using `WebApplicationFactory`.
+- **Integration / contract tests** – test the full pipeline end-to-end against a containerised Redis and a stubbed Hacker News API (e.g. WireMock) to catch serialisation and network-level issues.

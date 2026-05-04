@@ -8,18 +8,18 @@ using RedLockNet;
 
 namespace Api.Infrastructure.ExternalServices.HackerNews;
 
-internal sealed class HackerNewService(
+internal sealed class HackerNewsService(
     IDistributedCache distributedCache,
     IDistributedLockFactory lockFactory,
     HackerNewsHttpClient client,
     HackerNewsOptions options,
-    ILogger<HackerNewService> logger
+    ILogger<HackerNewsService> logger
     ) : IHackerNewsService
 {
     private readonly string _cacheKey = "hackernews:beststories";
     private readonly string _lockKey = "hackernews:beststories:lock";
 
-    private readonly TimeSpan _expiryTimeInSeconds = TimeSpan.FromSeconds(options.LockExpiryInSeconds);
+    private readonly TimeSpan _lockExpiryTimeInSeconds = TimeSpan.FromSeconds(options.LockExpiryInSeconds);
     private readonly TimeSpan _cacheExpiryTimeInSeconds = TimeSpan.FromSeconds(options.CacheExpiryTimeInSeconds);
     private readonly TimeSpan _lockWaitInSeconds = TimeSpan.FromSeconds(options.LockWaitInSeconds);
     private readonly TimeSpan _lockRetryTimeInMilliseconds = TimeSpan.FromMilliseconds(options.LockRetryIntervalInMilliseconds);
@@ -38,7 +38,7 @@ internal sealed class HackerNewService(
         if (!string.IsNullOrWhiteSpace(cached))
             return JsonSerializer.Deserialize<IEnumerable<Story>>(cached) ?? [];
 
-        await using var redLock = await lockFactory.CreateLockAsync(_lockKey, _expiryTimeInSeconds, _lockWaitInSeconds, _lockRetryTimeInMilliseconds, cancellationToken);
+        await using var redLock = await lockFactory.CreateLockAsync(_lockKey, _lockExpiryTimeInSeconds, _lockWaitInSeconds, _lockRetryTimeInMilliseconds, cancellationToken);
 
         if (!redLock.IsAcquired)
         {

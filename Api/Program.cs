@@ -20,7 +20,7 @@ builder.Services.AddRedis(builder.Configuration);
 
 builder.Services.AddScoped<IGetBestStoriesUseCase, GetBestStoriesUseCase>();
 
-builder.Services.AddScoped<IHackerNewsService, HackerNewService>();
+builder.Services.AddScoped<IHackerNewsService, HackerNewsService>();
 
 var hackerNewsOptions = builder.Configuration.GetSection(HackerNewsOptions.SectionName).Get<HackerNewsOptions>()!;
 
@@ -57,3 +57,5 @@ app.UseHttpsRedirection();
 app.MapCarter();
 
 app.Run();
+
+public partial class Program { }
