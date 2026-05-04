@@ -84,7 +84,7 @@ internal sealed class HackerNewService(
             Id = s.Id,
             CommentCount = s.Descendants,
             PostedBy = s.By,
-            Url = s.Url,
+            Url = s.Url ?? string.Empty,
             Score = s.Score,
             Time = s.Time,
             Title = s.Title,
